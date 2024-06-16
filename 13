@@ -1,0 +1,140 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Define a structure for a hash table entry (or node in case of chaining)
+typedef struct HashEntry {
+    int key;
+    int value;
+    struct HashEntry *next;  // Pointer to the next entry in case of chaining
+} HashEntry;
+
+// Define the structure for the hash table
+typedef struct HashTable {
+    int size;           // Current size of the hash table
+    int capacity;       // Total capacity of the hash table
+    HashEntry **table;  // Array of HashEntry pointers (for chaining)
+} HashTable;
+
+// Function prototypes
+unsigned int hash(int key, int capacity);
+void insertLinearProbing(HashTable *ht, int key, int value);
+void insertChaining(HashTable *ht, int key, int value);
+void rehash(HashTable **ht);
+void displayHashTable(HashTable *ht);
+unsigned int hash(int key, int capacity) {
+    // Simple modulus hashing function
+    return key % capacity;
+}
+void insertLinearProbing(HashTable *ht, int key, int value) {
+    int index = hash(key, ht->capacity);
+
+    // Linear probing until an empty slot is found
+    while (ht->table[index] != NULL) {
+        index = (index + 1) % ht->capacity;
+    }
+
+    // Allocate memory for new entry
+    HashEntry *newEntry = (HashEntry *) malloc(sizeof(HashEntry));
+    newEntry->key = key;
+    newEntry->value = value;
+    newEntry->next = NULL;
+
+    // Insert into the hash table
+    ht->table[index] = newEntry;
+    ht->size++;
+}
+void insertChaining(HashTable *ht, int key, int value) {
+    int index = hash(key, ht->capacity);
+
+    // Allocate memory for new entry
+    HashEntry *newEntry = (HashEntry *) malloc(sizeof(HashEntry));
+    newEntry->key = key;
+    newEntry->value = value;
+    newEntry->next = NULL;
+
+    // Insert at the beginning of the linked list at index
+    if (ht->table[index] == NULL) {
+        ht->table[index] = newEntry;
+    } else {
+        newEntry->next = ht->table[index];
+        ht->table[index] = newEntry;
+    }
+    ht->size++;
+}
+void rehash(HashTable **ht) {
+    HashTable *oldHT = *ht;
+    int oldCapacity = oldHT->capacity;
+    int newCapacity = 2 * oldCapacity;  // Double the capacity
+
+    // Allocate memory for new hash table
+    HashTable *newHT = (HashTable *) malloc(sizeof(HashTable));
+    newHT->size = 0;
+    newHT->capacity = newCapacity;
+    newHT->table = (HashEntry **) calloc(newCapacity, sizeof(HashEntry *));
+
+    // Rehash all elements from old table to new table
+    for (int i = 0; i < oldCapacity; i++) {
+        HashEntry *current = oldHT->table[i];
+        while (current != NULL) {
+            insertChaining(newHT, current->key, current->value);
+            current = current->next;
+        }
+    }
+
+    // Update original hash table to point to the new table
+    *ht = newHT;
+
+    // Free memory of old hash table
+    for (int i = 0; i < oldCapacity; i++) {
+        HashEntry *current = oldHT->table[i];
+        while (current != NULL) {
+            HashEntry *temp = current;
+            current = current->next;
+            free(temp);
+        }
+    }
+    free(oldHT->table);
+    free(oldHT);
+}
+void displayHashTable(HashTable *ht) {
+    printf("Hash Table:\n");
+    for (int i = 0; i < ht->capacity; i++) {
+        printf("[%d]: ", i);
+        HashEntry *current = ht->table[i];
+        while (current != NULL) {
+            printf("(%d, %d) -> ", current->key, current->value);
+            current = current->next;
+        }
+        printf("NULL\n");
+    }
+}
+int main() {
+    // Initialize hash table with initial capacity
+    int initialCapacity = 10;
+    HashTable *ht = (HashTable *) malloc(sizeof(HashTable));
+    ht->size = 0;
+    ht->capacity = initialCapacity;
+    ht->table = (HashEntry **) calloc(initialCapacity, sizeof(HashEntry *));
+
+    // Insert some key-value pairs
+    insertChaining(ht, 1, 10);
+    insertChaining(ht, 11, 20);
+    insertChaining(ht, 21, 30);
+    insertChaining(ht, 2, 40);
+    insertChaining(ht, 12, 50);
+
+    displayHashTable(ht);
+
+    // Perform rehashing (simulate load factor threshold)
+    if (ht->size > 0.75 * ht->capacity) {
+        rehash(&ht);
+    }
+
+    displayHashTable(ht);
+
+    // Clean up memory
+    // Code for freeing memory should be added
+
+    return 0;
+}
